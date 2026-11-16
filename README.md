@@ -20,7 +20,7 @@ work/
 
 - macOS と Xcode (iOS SDK、iOS シミュレータのランタイム)。確認済み: macOS 15.8 (Intel)、Xcode 26.3
 - CMake 3.21 以上、Python 3.9 以上、vcpkg (環境変数 `VCPKG_ROOT`)
-- 実機で動かす場合: Apple Developer の Team ID (`siv3d-app.json` の `ios.team`)
+- 実機で動かす場合: Apple Developer の Team ID (アプリの `siv3d-app.local.json` の `ios.team`、または環境変数 `SIV3D_IOS_TEAM`)。確認済み: iPhone 11 (iOS 26.5)
 
 ## 使い方
 
@@ -29,7 +29,12 @@ cd MyApp
 make ios          # シミュレータ向け (ホストの CPU: Intel Mac は x86_64、Apple Silicon は arm64) に build + stage + package
 make ios-run      # 起動中のシミュレータ (無ければ iPhone を 1 台起動) にインストールして起動
 make ios-device   # 実機 (arm64) 向け。build/ios/device-arm64/package/<exeName>-<version>-ios-device.ipa
+make ios-device-run  # 接続中の実機にインストールして起動 (DEVICE=<UDID または名前> で選べる)
 ```
+
+実機で動かすには Apple Developer の Team ID による署名が必要です。Team ID はアプリのフォルダの
+`siv3d-app.local.json` (git の管理外) に `{ "ios": { "team": "..." } }` と書きます (環境変数 `SIV3D_IOS_TEAM` でも可)。
+手順はテンプレート (siv3d_app) の README の「iOS 実機で動かす」を参照してください。
 
 `siv3d-app.json` の例:
 
@@ -38,8 +43,7 @@ make ios-device   # 実機 (arm64) 向け。build/ios/device-arm64/package/<exeN
   "displayName": "My App",
   "build": "1",
   "deploymentTarget": "15.0",
-  "orientations": "landscape",
-  "team": ""
+  "orientations": "landscape"
 }
 ```
 
@@ -60,4 +64,15 @@ make ios-device   # 実機 (arm64) 向け。build/ios/device-arm64/package/<exeN
 - ファイルダイアログ、DirectoryWatcher、テキストエディタ・ファイルマネージャの起動は使えません
 - WebM の動画 (movie-player) は使えません (libvpx が iOS シミュレータ向けにビルドできないため)
 - 描画は OpenGL ES (EAGL)。シミュレータでは Apple のソフトウェアレンダラになります
-- 実機での起動は未確認です (ビルドとリンクまで確認済み)
+- ライセンス一覧はブラウザでは表示できないので、アプリ内に表示します (テンプレートの `LicenseView.hpp` と [Licenses] ボタン)
+- ソフトウェアキーボードは、入力欄が入力中の間だけ出ます (SimpleGUI の `TextBox` / `TextArea` は自動。独自の入力欄は入力中の間 `TextInput::SetEditingArea` を毎フレーム呼ぶ)。
+  外をタップすると閉じ、閉じた後はもう一度タップで出し直します。**シミュレータでは、ソフトウェアキーボードの ⌫ が効きません**
+  (SDL が、Mac のキーボードが接続されている (`SDL_HasKeyboard()`) とみなして BS を捨てるため。実機での確認と SDL の修正は今後の検討事項)
+- iOS では終了要求で終了しません (アプリの終了は OS に任せます)。`System::Exit()` も呼ばないでください (画面が黒いまま残ります)
+
+## 確認状況
+
+- iOS シミュレータ (Intel Mac の x86_64、iOS 26.3 / 18.5): テンプレートの MyApp の表示 (画像・文字)、音声、アプリ内のライセンス一覧、
+  ソフトウェアキーボードの開閉と文字入力 (上の ⌫ を除く)
+- 実機 (iPhone 11、iOS 26.5): 署名付きでビルドしてインストール・起動し、画像と文字が表示されることを確認
+  (描画は Apple A13 GPU の OpenGL ES 3.0、音声は MiniAudio)。ソフトウェアキーボードでの文字入力は、実機では未確認
